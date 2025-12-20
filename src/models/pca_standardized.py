@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-def pca_standardised(df_final):
+def pca_standardized(df_final):
     # 1. Selection of features
     features = [
         "co2_per_capita",
