@@ -2,7 +2,7 @@
 # Main script
 # ============================================================
 
-from data_loader.py import df_final
+from data_loader.py import load_data()
 
 from models import (
     run_pca_standardized,
