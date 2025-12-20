@@ -18,8 +18,7 @@ def pca_standardised(df_final):
         "Hydro",
         "Wind",
         "Solar",
-        "Other"
-    ]
+        "Other"]
 
     df_pca = df_final.dropna(subset=features).copy()
     X = df_pca[features].values
@@ -52,12 +51,7 @@ def pca_standardised(df_final):
     df_pca["Country"] = df_final.loc[df_pca.index, "Country"].values
 
     # 7. Mean per country
-    df_pca_mean = (
-        df_pca
-        .groupby("Country")[["PC1", "PC2"]]
-        .mean()
-        .reset_index()
-    )
+    df_pca_mean = (df_pca.groupby("Country")[["PC1", "PC2"]].mean().reset_index())
 
     # 8. Variance explained
     explained = eigvals[:2] / eigvals.sum()
