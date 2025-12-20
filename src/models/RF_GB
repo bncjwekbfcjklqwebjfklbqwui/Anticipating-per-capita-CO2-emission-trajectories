@@ -1,0 +1,99 @@
+# =====================================
+# Models: Random Forest & Gradient Boosting
+# =====================================
+
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+
+# -------------------------------------
+# Random Forest
+# -------------------------------------
+
+def run_random_forest(path_df_final):
+    df_final = pd.read_csv(path_df_final)
+
+    # Target
+    y = df_final["co2_per_capita"]
+
+    # Features
+    features = [
+        "gdp_per_capita", "Coal", "Oil", "Gas",
+        "Nuclear", "Hydro", "Wind", "Solar", "Other"
+    ]
+    X = df_final[features]
+
+    # Model
+    rf = RandomForestRegressor(
+        n_estimators=500,
+        max_depth=None,
+        random_state=42
+    )
+
+    # Fit on ALL data (comme ton code)
+    rf.fit(X, y)
+
+    # Prediction on same X
+    df_final["co2_pred_rf"] = rf.predict(X)
+
+    # Mean per country
+    df_rf_pred = df_final[[
+        "Country", "ISO3", "co2_per_capita", "co2_pred_rf"
+    ]].copy()
+
+    df_rf_pred = df_rf_pred.rename(
+        columns={"co2_per_capita": "y_true"}
+    )
+
+    df_rf_country_mean = (
+        df_rf_pred
+        .groupby(["Country", "ISO3"], as_index=False)
+        .agg({
+            "y_true": "mean",
+            "co2_pred_rf": "mean"
+        })
+    )
+
+    return df_final, df_rf_country_mean
+
+
+# -------------------------------------
+# Gradient Boosting
+# -------------------------------------
+
+def run_gradient_boosting(path_df_final):
+    df_final = pd.read_csv(path_df_final)
+
+    energy_cols = [
+        "Coal", "Oil", "Gas", "Nuclear",
+        "Hydro", "Wind", "Solar", "Other"
+    ]
+
+    df_final[energy_cols] = df_final[energy_cols].fillna(0)
+    df_final = df_final.dropna().reset_index(drop=True)
+
+    df_num = df_final.drop(["Country", "ISO3"], axis=1)
+
+    X = df_num.drop("co2_per_capita", axis=1)
+    y = df_num["co2_per_capita"]
+
+    gb = GradientBoostingRegressor(
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=3,
+        random_state=42
+    )
+
+    gb.fit(X, y)
+
+    df_final["co2_pred_gb"] = gb.predict(X)
+
+    df_gb_country_mean = (
+        df_final
+        .groupby(["Country", "ISO3"], as_index=False)
+        .agg(
+            co2_per_capita=("co2_per_capita", "mean"),
+            co2_predicted=("co2_pred_gb", "mean")
+        )
+    )
+
+    return df_final, df_gb_country_mean
