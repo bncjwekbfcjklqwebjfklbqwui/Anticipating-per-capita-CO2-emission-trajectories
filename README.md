@@ -1,4 +1,4 @@
-# Forecasting CO₂ Emissions per Capita using Machine Learning
+#     Anticipating per capita CO2 emission trajectories
 
 ## Project Overview
 
