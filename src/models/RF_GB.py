@@ -185,8 +185,7 @@ def run_gradient_boosting(df_final):
         n_estimators=500,
         learning_rate=0.05,
         max_depth=3,
-        random_state=42
-    )
+        random_state=42 )
     gb.fit(X, y)
 
     # --------------------
@@ -202,11 +201,7 @@ def run_gradient_boosting(df_final):
     df_gb_country = (
         df_pred
         .groupby(["Country", "ISO3"], as_index=False)
-        .agg(
-            co2_per_capita=("co2_per_capita", "mean"),
-            co2_predicted=("co2_predicted", "mean")
-        )
-    )
+        .agg( co2_per_capita=("co2_per_capita", "mean"),co2_predicted=("co2_predicted", "mean")))
 
     # --------------------
     # Diagnostics (full sample)
@@ -214,7 +209,6 @@ def run_gradient_boosting(df_final):
     metrics = {
         "rmse": float(np.sqrt(mean_squared_error(y, gb.predict(X)))),
         "mae": float(mean_absolute_error(y, gb.predict(X))),
-        "r2": float(r2_score(y, gb.predict(X))),
-    }
+        "r2": float(r2_score(y, gb.predict(X))),}
 
     return df_gb_country, metrics
