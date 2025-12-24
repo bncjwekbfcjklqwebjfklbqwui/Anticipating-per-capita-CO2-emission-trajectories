@@ -147,8 +147,20 @@ When running `main.py`, the following outputs are automatically generated:
 
 ## Reproducibility
 
-### Environment setup
+## How to run the project
+
+### Step 1 — Download the project
+
+1. Go to the GitHub repository
+2. Click on **Code**
+3. Click on **Download ZIP**
+4. Unzip the folder on your computer
+
+---
+
+### Step 2 — Run the pipeline
+
+Open a terminal (bash), move to the project folder, and run:
 
 ```bash
-conda env create -f environment.yml
-conda activate co2-forecast-env
+python main.py
