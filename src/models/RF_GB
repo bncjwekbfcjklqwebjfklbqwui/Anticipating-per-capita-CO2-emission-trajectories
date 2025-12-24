@@ -1,99 +1,220 @@
-# =====================================
-# Models: Random Forest & Gradient Boosting
-# =====================================
+# ============================================================
+# Supervised models: Random Forest & Gradient Boosting
+# Static (no temporal dynamics)
+# ============================================================
 
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# -------------------------------------
-# Random Forest
-# -------------------------------------
 
-def run_random_forest(path_df_final):
-    df_final = pd.read_csv(path_df_final)
+# ============================================================
+# Random Forest (static)
+# ============================================================
 
-    # Target
+def run_random_forest(df_final):
+    """
+    Static Random Forest model:
+    f(GDP per capita, energy mix) -> CO2 per capita
+
+    Parameters
+    ----------
+    df_final : pd.DataFrame
+        Clean country-year panel.
+
+    Returns
+    -------
+    df_rf_country : pd.DataFrame
+        Country-level mean table with columns:
+        - Country
+        - ISO3
+        - y_true
+        - co2_pred_rf
+
+    metrics : dict
+        RMSE, MAE, R2 computed on the full sample
+        (diagnostic purpose only).
+    """
+
+    # --------------------
+    # Required columns
+    # --------------------
+    required_cols = [
+        "Country",
+        "ISO3",
+        "co2_per_capita",
+        "gdp_per_capita",
+    ]
+
+    missing = [c for c in required_cols if c not in df_final.columns]
+    if missing:
+        raise ValueError(f"Missing required columns for RF: {missing}")
+
+    # --------------------
+    # Optional energy variables
+    # --------------------
+    energy_vars = [
+        "Coal", "Oil", "Gas",
+        "Nuclear", "Hydro", "Wind", "Solar", "Other",
+    ]
+
+    available_energy = [c for c in energy_vars if c in df_final.columns]
+
+    if len(available_energy) == 0:
+        raise ValueError(
+            "No energy variables available for Random Forest model."
+        )
+
+    # --------------------
+    # Features and target
+    # --------------------
+    features = ["gdp_per_capita"] + available_energy
+    X = df_final[features]
     y = df_final["co2_per_capita"]
 
-    # Features
-    features = [
-        "gdp_per_capita", "Coal", "Oil", "Gas",
-        "Nuclear", "Hydro", "Wind", "Solar", "Other"
-    ]
-    X = df_final[features]
-
-    # Model
+    # --------------------
+    # Model estimation
+    # --------------------
     rf = RandomForestRegressor(
         n_estimators=500,
-        max_depth=None,
-        random_state=42
+        random_state=42,
+        n_jobs=-1
     )
-
-    # Fit on ALL data (comme ton code)
     rf.fit(X, y)
 
-    # Prediction on same X
-    df_final["co2_pred_rf"] = rf.predict(X)
+    # --------------------
+    # Predictions
+    # --------------------
+    df_pred = df_final[["Country", "ISO3"]].copy()
+    df_pred["y_true"] = y.values
+    df_pred["co2_pred_rf"] = rf.predict(X)
 
-    # Mean per country
-    df_rf_pred = df_final[[
-        "Country", "ISO3", "co2_per_capita", "co2_pred_rf"
-    ]].copy()
-
-    df_rf_pred = df_rf_pred.rename(
-        columns={"co2_per_capita": "y_true"}
-    )
-
-    df_rf_country_mean = (
-        df_rf_pred
+    # --------------------
+    # Country-level aggregation
+    # --------------------
+    df_rf_country = (
+        df_pred
         .groupby(["Country", "ISO3"], as_index=False)
-        .agg({
-            "y_true": "mean",
-            "co2_pred_rf": "mean"
-        })
+        .agg(
+            y_true=("y_true", "mean"),
+            co2_pred_rf=("co2_pred_rf", "mean")
+        )
     )
 
-    return df_final, df_rf_country_mean
+    # --------------------
+    # Diagnostics (full sample)
+    # --------------------
+    metrics = {
+        "rmse": float(np.sqrt(mean_squared_error(y, rf.predict(X)))),
+        "mae": float(mean_absolute_error(y, rf.predict(X))),
+        "r2": float(r2_score(y, rf.predict(X))),
+    }
+
+    return df_rf_country, metrics
 
 
-# -------------------------------------
-# Gradient Boosting
-# -------------------------------------
+# ============================================================
+# Gradient Boosting (static)
+# ============================================================
 
-def run_gradient_boosting(path_df_final):
-    df_final = pd.read_csv(path_df_final)
+def run_gradient_boosting(df_final):
+    """
+    Static Gradient Boosting model:
+    f(GDP per capita, energy mix) -> CO2 per capita
 
-    energy_cols = [
-        "Coal", "Oil", "Gas", "Nuclear",
-        "Hydro", "Wind", "Solar", "Other"
+    Parameters
+    ----------
+    df_final : pd.DataFrame
+        Clean country-year panel.
+
+    Returns
+    -------
+    df_gb_country : pd.DataFrame
+        Country-level mean table with columns:
+        - Country
+        - ISO3
+        - co2_per_capita
+        - co2_predicted
+
+    metrics : dict
+        RMSE, MAE, R2 computed on the full sample
+        (diagnostic purpose only).
+    """
+
+    # --------------------
+    # Required columns
+    # --------------------
+    required_cols = [
+        "Country",
+        "ISO3",
+        "co2_per_capita",
+        "gdp_per_capita",
     ]
 
-    df_final[energy_cols] = df_final[energy_cols].fillna(0)
-    df_final = df_final.dropna().reset_index(drop=True)
+    missing = [c for c in required_cols if c not in df_final.columns]
+    if missing:
+        raise ValueError(f"Missing required columns for GB: {missing}")
 
-    df_num = df_final.drop(["Country", "ISO3"], axis=1)
+    # --------------------
+    # Optional energy variables
+    # --------------------
+    energy_vars = [
+        "Coal", "Oil", "Gas",
+        "Nuclear", "Hydro", "Wind", "Solar", "Other",
+    ]
 
-    X = df_num.drop("co2_per_capita", axis=1)
-    y = df_num["co2_per_capita"]
+    available_energy = [c for c in energy_vars if c in df_final.columns]
 
+    if len(available_energy) == 0:
+        raise ValueError(
+            "No energy variables available for Gradient Boosting model."
+        )
+
+    # --------------------
+    # Features and target
+    # --------------------
+    features = ["gdp_per_capita"] + available_energy
+    X = df_final[features]
+    y = df_final["co2_per_capita"]
+
+    # --------------------
+    # Model estimation
+    # --------------------
     gb = GradientBoostingRegressor(
         n_estimators=500,
         learning_rate=0.05,
         max_depth=3,
         random_state=42
     )
-
     gb.fit(X, y)
 
-    df_final["co2_pred_gb"] = gb.predict(X)
+    # --------------------
+    # Predictions
+    # --------------------
+    df_pred = df_final[["Country", "ISO3"]].copy()
+    df_pred["co2_per_capita"] = y.values
+    df_pred["co2_predicted"] = gb.predict(X)
 
-    df_gb_country_mean = (
-        df_final
+    # --------------------
+    # Country-level aggregation
+    # --------------------
+    df_gb_country = (
+        df_pred
         .groupby(["Country", "ISO3"], as_index=False)
         .agg(
             co2_per_capita=("co2_per_capita", "mean"),
-            co2_predicted=("co2_pred_gb", "mean")
+            co2_predicted=("co2_predicted", "mean")
         )
     )
 
-    return df_final, df_gb_country_mean
+    # --------------------
+    # Diagnostics (full sample)
+    # --------------------
+    metrics = {
+        "rmse": float(np.sqrt(mean_squared_error(y, gb.predict(X)))),
+        "mae": float(mean_absolute_error(y, gb.predict(X))),
+        "r2": float(r2_score(y, gb.predict(X))),
+    }
+
+    return df_gb_country, metrics
