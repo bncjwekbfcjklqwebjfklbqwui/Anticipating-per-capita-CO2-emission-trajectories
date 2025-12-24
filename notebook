@@ -672,3 +672,67 @@ plt.legend(fontsize=6)
 plt.grid(True)
 plt.savefig("medium_emitters.png", dpi=300, bbox_inches="tight")
 plt.show()
+
+#=====================================
+#Figurs
+#=====================================
+def plot_trajectories(countries, title):
+    plt.figure(figsize=(8,5))
+    for c in countries:
+        d = df_forecast[df_forecast["Country"] == c].sort_values("Year")
+        plt.plot(d["Year"], d["co2_pred"], marker="o", label=c)
+    plt.title(title)
+    plt.xlabel("Year")
+    plt.ylabel("CO₂ per capita (predicted)")
+    plt.grid(True)
+    plt.legend(fontsize=6)
+    plt.show()
+levels = {"Low emitters": df_forecast[df_forecast["Year"] == 2024]
+        .sort_values("co2_pred")
+        .head(8)["Country"].tolist(),
+
+        "Medium emitters": df_forecast[df_forecast["Year"] == 2024]
+        .sort_values("co2_pred")
+        .iloc[8:16]["Country"].tolist(),
+
+        "High emitters": df_forecast[df_forecast["Year"] == 2024]
+        .sort_values("co2_pred")
+        .tail(8)["Country"].tolist(),}
+
+lt.figure(figsize=(8,5))
+
+for c in levels["Low emitters"]:
+    d = df_forecast[df_forecast["Country"] == c].sort_values("Year")
+    plt.plot(d["Year"], d["co2_pred"], label=c)
+
+plt.title("Low CO$_2$ emitting countries (2024–2030)")
+plt.xlabel("Year")
+plt.ylabel("CO$_2$ per capita (predicted)")
+plt.legend(fontsize=6)
+plt.grid(True)
+plt.savefig("low_emitters.png", dpi=300, bbox_inches="tight")
+plt.show()
+for c in levels["High emitters"]:
+    d = df_forecast[df_forecast["Country"] == c].sort_values("Year")
+    plt.plot(d["Year"], d["co2_pred"], label=c)
+
+plt.title("High CO2 emitting countries (2024–2030)")
+plt.xlabel("Year")
+plt.ylabel("CO2 per capita (predicted)")
+plt.legend(fontsize=6)
+plt.grid(True)
+plt.savefig("high_emitters.png", dpi=300, bbox_inches="tight")
+plt.show()
+plt.figure(figsize=(8,5))
+
+for c in levels["Medium emitters"]:
+    d = df_forecast[df_forecast["Country"] == c].sort_values("Year")
+    plt.plot(d["Year"], d["co2_pred"], label=c)
+
+plt.title("Medium CO$_2$ emitting countries (2024–2030)")
+plt.xlabel("Year")
+plt.ylabel("CO$_2$ per capita (predicted)")
+plt.legend(fontsize=6)
+plt.grid(True)
+plt.savefig("medium_emitters.png", dpi=300, bbox_inches="tight")
+plt.show()
