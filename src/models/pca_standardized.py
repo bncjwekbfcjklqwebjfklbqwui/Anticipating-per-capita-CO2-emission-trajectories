@@ -1,14 +1,14 @@
 # ============================================================
-# PCA standardisé (from scratch) — original code reformatted
+# PCA standardisé (from scratch)
 # ============================================================
 
 import numpy as np
 import pandas as pd
 
 
-def pca_standardized(df_final):
-    # 1. Selection of features
-    features = [
+def run_pca_standardized(df_final):
+    # 1. Selection of features (robust to missing columns)
+    features_all = [
         "co2_per_capita",
         "gdp_per_capita",
         "Coal",
@@ -18,7 +18,14 @@ def pca_standardized(df_final):
         "Hydro",
         "Wind",
         "Solar",
-        "Other"]
+        "Other"
+    ]
+
+    # Keep only features that actually exist in the data
+    features = [f for f in features_all if f in df_final.columns]
+
+    if len(features) < 2:
+        raise ValueError("Not enough features available for PCA.")
 
     df_pca = df_final.dropna(subset=features).copy()
     X = df_pca[features].values
@@ -51,7 +58,12 @@ def pca_standardized(df_final):
     df_pca["Country"] = df_final.loc[df_pca.index, "Country"].values
 
     # 7. Mean per country
-    df_pca_mean = (df_pca.groupby("Country")[["PC1", "PC2"]].mean().reset_index())
+    df_pca_mean = (
+        df_pca
+        .groupby("Country")[["PC1", "PC2"]]
+        .mean()
+        .reset_index()
+    )
 
     # 8. Variance explained
     explained = eigvals[:2] / eigvals.sum()
