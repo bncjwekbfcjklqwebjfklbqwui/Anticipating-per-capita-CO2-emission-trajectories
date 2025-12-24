@@ -1,68 +1,151 @@
 # ============================================================
 # Main script
+# Orchestration of models, evaluation and results
 # ============================================================
 
+from pathlib import Path
+
+# --------------------
+# Data
+# --------------------
 from src.data_loader import load_data
 
+# --------------------
+# Models
+# --------------------
 from src.models import (
     run_pca_standardized,
     run_kmeans_pca,
     run_random_forest,
     run_gradient_boosting,
-    run_future_projection
+    run_future_projection,
 )
 
+# --------------------
+# Evaluation (metrics only)
+# --------------------
 from src.evaluation import (
-    eval_model,
-    plot_rf_gb_comparison,
-    plot_residuals,
-    plot_pca_variance,
-    plot_kmeans_pca
+    regression_metrics,
+    pca_variance_table,
 )
 
-# ----------------------
-# 1. Load data
-# ----------------------
+# --------------------
+# Results (tables & figures)
+# --------------------
+from src.results import (
+    save_table,
+    country_prediction_table,
+    rf_gb_comparison_table,
+    kmeans_cluster_table,
+    plot_pca_scatter,
+    plot_pca_country_means,
+    plot_kmeans_pca,
+    plot_emission_trajectories_by_group,
+)
 
-df_final = load_data()
 
-# ----------------------
-# 2. PCA standardized
-# ----------------------
+def main():
 
-df_pca, df_pca_mean, eigvals, explained = run_pca_standardized(df_final)
-plot_pca_variance(eigvals)
+    # =====================================================
+    # Project root
+    # =====================================================
+    project_root = Path(__file__).resolve().parent
+    print("Project root:", project_root)
 
-# ----------------------
-# 3. KMeans on PCA
-# ----------------------
+    # =====================================================
+    # 1. Load data
+    # =====================================================
+    df_final = load_data()
+    print("Data loaded:", df_final.shape)
 
-df_country_clusters = run_kmeans_pca(df_pca_mean)
-plot_kmeans_pca(df_pca_mean)
+    # =====================================================
+    # 2. PCA (standardized)
+    # =====================================================
+    print("Running standardized PCA...")
+    df_pca, df_pca_mean, eigvals, explained = run_pca_standardized(df_final)
+    print("PCA completed.")
 
-# ----------------------
-# 4. RF & GB (static)
-# ----------------------
+    # --- Evaluation
+    df_pca_variance = pca_variance_table(eigvals)
+    save_table(df_pca_variance, "pca_variance_explained.csv")
 
-df_rf_gb = run_random_forest(df_final)
-df_gb = run_gradient_boosting(df_final)
+    # --- Figures
+    plot_pca_scatter(df_pca)
+    plot_pca_country_means(df_pca_mean)
 
-plot_rf_gb_comparison(df_rf_gb)
-plot_residuals(df_rf_gb)
+    # =====================================================
+    # 3. KMeans on PCA
+    # =====================================================
+    print("Running KMeans on PCA space...")
+    df_country_clusters = run_kmeans_pca(df_pca, df_pca_mean)
+    print("KMeans completed.")
 
-# ----------------------
-# 5. Future projection
-# ----------------------
+    df_cluster_table = kmeans_cluster_table(df_country_clusters)
+    save_table(df_cluster_table, "kmeans_country_clusters.csv")
 
-df_forecast, df_trajectory = run_future_projection(df_final)
+    # Merge PCA means with cluster labels for plotting
+    df_pca_kmeans = df_pca_mean.merge(
+    df_country_clusters[["Country", "cluster_mode"]],
+    on="Country",
+    how="left")
 
-# ----------------------
-# 6. Save results
-# ----------------------
+    plot_kmeans_pca(df_pca_kmeans)
 
-df_country_clusters.to_csv("results/country_clusters.csv", index=False)
-df_rf_gb.to_csv("results/rf_gb_comparison.csv", index=False)
-df_forecast.to_csv("results/future_projection.csv", index=False)
-df_trajectory.to_csv("results/trajectory_classification.csv", index=False)
+    # =====================================================
+    # 4. Random Forest (static)
+    # =====================================================
+    print("Running Random Forest (static)...")
+    df_rf_country, rf_metrics = run_random_forest(df_final)
+    print("RF model diagnostics:", rf_metrics)
 
-print("Pipeline completed successfully.")
+    rf_eval = regression_metrics(
+        y_true=df_rf_country["y_true"],
+        y_pred=df_rf_country["co2_pred_rf"]
+    )
+    save_table(df_rf_country, "rf_country_predictions.csv")
+
+    # =====================================================
+    # 5. Gradient Boosting (static)
+    # =====================================================
+    print("Running Gradient Boosting (static)...")
+    df_gb_country, gb_metrics = run_gradient_boosting(df_final)
+    print("GB model diagnostics:", gb_metrics)
+
+    gb_eval = regression_metrics(
+        y_true=df_gb_country["co2_per_capita"],
+        y_pred=df_gb_country["co2_predicted"]
+    )
+    save_table(df_gb_country, "gb_country_predictions.csv")
+
+    # =====================================================
+    # 6. RF vs GB comparison
+    # =====================================================
+    df_rf_gb_table = rf_gb_comparison_table(
+        df_rf_country,
+        df_gb_country
+    )
+    save_table(df_rf_gb_table, "rf_vs_gb_comparison.csv")
+
+    # =====================================================
+    # 7. Dynamic future projections
+    # =====================================================
+    print("Running dynamic future projections...")
+    df_forecast, df_trajectory = run_future_projection(df_final)
+    print("Future projection completed.")
+
+    save_table(df_forecast, "future_co2_projections_2024_2030.csv")
+    save_table(df_trajectory, "co2_trajectory_classification.csv")
+    # =====================================================
+    # 9. Emission trajectories (LOW / MEDIUM / HIGH)
+    # =====================================================
+    plot_emission_trajectories_by_group(df_forecast)
+
+
+    # =====================================================
+    # End
+    # =====================================================
+    print("Pipeline executed successfully.")
+
+
+if __name__ == "__main__":
+    main()
