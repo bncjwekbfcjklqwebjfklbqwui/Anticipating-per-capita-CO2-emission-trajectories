@@ -736,3 +736,30 @@ plt.legend(fontsize=6)
 plt.grid(True)
 plt.savefig("medium_emitters.png", dpi=300, bbox_inches="tight")
 plt.show()
+
+#Extraire CO2 prédit en 2024 et 2030
+co2_2024 = (df_forecast[df_forecast["Year"] == 2024][["Country", "co2_pred"]].rename(columns={"co2_pred": "co2_2024"}))
+
+co2_2030 = (df_forecast[df_forecast["Year"] == 2030][["Country", "co2_pred"]].rename(columns={"co2_pred": "co2_2030"}))
+
+#Construire le tableau pays × trajectoire
+df_trajectory = co2_2024.merge(co2_2030, on="Country", how="inner")
+
+df_trajectory["delta_pct"] = ((df_trajectory["co2_2030"] - df_trajectory["co2_2024"])/ df_trajectory["co2_2024"])
+
+#Classifier les pays (increase / stable / decrease)
+def classify_trajectory(delta, eps):
+    if delta > eps:
+        return "increase"
+    elif delta < -eps:
+        return "decrease"
+    else:
+        return "stable"
+
+df_trajectory["trajectory"] = df_trajectory["delta_pct"].apply(lambda x: classify_trajectory(x, epsilon))
+
+df_trajectory = df_trajectory.sort_values("delta_pct")
+
+df_trajectory[[ "Country","co2_2024","co2_2030","delta_pct","trajectory"]]
+df_trajectory.to_csv("/files/Project-DS/Projection/df_trajectory.csv", index=False)
+df_trajectory.head()
